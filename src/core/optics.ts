@@ -295,7 +295,8 @@ export function applyLensLimits(lens: LensSpec, throwRatio: number, shift: Shift
   }
   const h = clamp(shift.h, lens.shiftH);
   const v = clamp(shift.v, lens.shiftV);
-  if (h !== shift.h) warnings.push(`Shift H ${shift.h} fora da faixa (${lens.shiftH.min} a ${lens.shiftH.max}); usando ${h}.`);
-  if (v !== shift.v) warnings.push(`Shift V ${shift.v} fora da faixa (${lens.shiftV.min} a ${lens.shiftV.max}); usando ${v}.`);
+  const pct = (x: number) => `${Math.round(x * 1000) / 10}%`;
+  if (h !== shift.h) warnings.push(`Shift H ${pct(shift.h)} fora da lente (${pct(lens.shiftH.min)} a ${pct(lens.shiftH.max)}); usando ${pct(h)}.`);
+  if (v !== shift.v) warnings.push(`Shift V ${pct(shift.v)} fora da lente (${pct(lens.shiftV.min)} a ${pct(lens.shiftV.max)}); usando ${pct(v)}.`);
   return { throwRatio: tr, shift: { h, v }, clamped: warnings.length > 0, warnings };
 }
