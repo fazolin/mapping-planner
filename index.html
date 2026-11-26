@@ -9,9 +9,13 @@
   <body>
     <header class="topbar">
       <strong>Mapping Planner</strong>
-      <span class="muted">Calculadora de projeção</span>
+      <nav class="tabs" id="tabs">
+        <button data-tab="cena">Cena 3D</button>
+        <button data-tab="calc">Calculadora</button>
+      </nav>
     </header>
-    <main id="app"></main>
+    <main id="cena" class="scene-layout"></main>
+    <main id="calc" class="calc" hidden></main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
