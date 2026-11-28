@@ -1,9 +1,14 @@
 import { ImportedModel, parseObj, type ImportOptions } from "../scene/objImport";
 import { fmtM, MeasureTool, type Measurement } from "../scene/measure";
+import { ProjectorSystem } from "../scene/projectors";
+import { ProjectorPanel } from "./projectorPanel";
 import { boxSize, guessUnit, UNIT_LABEL, type OriginMode, type Unit, type UpAxis } from "../scene/units";
 import { Viewer, type ViewPreset } from "../scene/viewer";
 
-const SAMPLE_URL = `${import.meta.env.BASE_URL}samples/fachada.obj`;
+const SAMPLES: Record<string, { label: string; file: string }> = {
+  fachada: { label: "Fachada simples", file: "fachada.obj" },
+  partenon: { label: "Partenon", file: "partenon.obj" },
+};
 const nf = new Intl.NumberFormat("pt-BR");
 const MEASURE_HINT = "Clique em dois pontos do modelo; o clique gruda nos cantos (Option/Alt solta). Esc limpa.";
 
@@ -17,9 +22,14 @@ export function mountSceneView(root: HTMLElement): void {
         <h2>Modelo</h2>
         <div class="btn-row">
           <label class="btn primary">Abrir OBJ…<input id="file" type="file" accept=".obj" hidden /></label>
-          <button class="btn" id="sample">Exemplo</button>
         </div>
         <p class="hint">Ou arraste um arquivo .obj para a área 3D.</p>
+        <div class="samples" id="samples">
+          <span class="hint">Exemplos:</span>
+          ${Object.entries(SAMPLES)
+            .map(([k, s]) => `<button class="link" data-sample="${k}">${s.label}</button>`)
+            .join(" · ")}
+        </div>
         <div id="modelInfo" hidden>
           <p class="file-name" id="fileName"></p>
           <div class="field">
@@ -43,6 +53,8 @@ export function mountSceneView(root: HTMLElement): void {
           <div class="dims" id="dims"></div>
         </div>
       </section>
+
+      <div id="projectors"></div>
 
       <section class="panel">
         <h2>Medir</h2>
@@ -82,6 +94,65 @@ export function mountSceneView(root: HTMLElement): void {
   const measure = new MeasureTool(viewer);
   let model: ImportedModel | null = null;
 
+  // --- projetores --------------------------------------------------------------
+  const projectors = new ProjectorSystem(viewer);
+  let aiming = false;
+  const panel = new ProjectorPanel($("#projectors"), projectors, () => setAiming(!aiming));
+  const baseOnChange = projectors.onChange;
+  projectors.onChange = () => {
+    baseOnChange();
+    syncGizmo();
+  };
+
+  function syncGizmo() {
+    const obj = projectors.selectedId != null && !measure.active ? projectors.object(projectors.selectedId) : undefined;
+    if (obj && obj.visible) {
+      if (viewer.transform.object !== obj) viewer.transform.attach(obj);
+    } else viewer.transform.detach();
+    viewer.invalidate();
+  }
+
+  function setAiming(on: boolean) {
+    aiming = on && projectors.selectedId != null;
+    if (aiming && measure.active) toggleMeasure(false);
+    panel.setAiming(aiming);
+    viewer.canvas.style.cursor = aiming ? "crosshair" : "";
+  }
+
+  // gizmo: ao arrastar, grava a posição nos dados do projetor
+  viewer.transform.addEventListener("objectChange", () => {
+    const id = projectors.selectedId;
+    const obj = viewer.transform.object;
+    if (id == null || !obj) return;
+    const p = obj.position;
+    const r = (v: number) => Math.round(v * 100) / 100;
+    projectors.update(id, { position: [r(p.x), r(p.y), r(p.z)] });
+  });
+
+  // clique na cena: apontar, ou selecionar projetor
+  let down: { x: number; y: number; onGizmo: boolean } | null = null;
+  viewer.canvas.addEventListener("pointerdown", (e) => {
+    down = { x: e.clientX, y: e.clientY, onGizmo: viewer.transform.axis !== null };
+  });
+  viewer.canvas.addEventListener("pointerup", (e) => {
+    if (!down || e.button !== 0) return;
+    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4;
+    const onGizmo = down.onGizmo;
+    down = null;
+    if (moved || onGizmo || measure.active) return;
+    if (aiming) {
+      const hit = viewer.pick(e.clientX, e.clientY);
+      if (hit && projectors.selectedId != null) projectors.aimAt(projectors.selectedId, hit.point);
+      setAiming(false);
+      return;
+    }
+    const id = projectors.pick(e.clientX, e.clientY);
+    if (id != null) projectors.select(id);
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && aiming) setAiming(false);
+  });
+
   const unitSel = $<HTMLSelectElement>("#unit");
   const upSel = $<HTMLSelectElement>("#up");
   const originSel = $<HTMLSelectElement>("#origin");
@@ -113,6 +184,7 @@ export function mountSceneView(root: HTMLElement): void {
     measure.setScale(largest);
     measure.clear();
     if (reframe) viewer.setView("perspectiva");
+    projectors.modelChanged();
     viewer.invalidate();
   }
 
@@ -151,6 +223,7 @@ export function mountSceneView(root: HTMLElement): void {
     tmp.apply(readOptions());
     model = tmp;
     viewer.modelRoot.add(model.root);
+    projectors.setModel(model);
 
     $("#fileName").textContent = fileName;
     $("#modelInfo").hidden = false;
@@ -176,9 +249,12 @@ export function mountSceneView(root: HTMLElement): void {
     (e.target as HTMLInputElement).value = "";
   });
 
-  $("#sample").addEventListener("click", async () => {
-    const res = await fetch(SAMPLE_URL);
-    load("fachada-exemplo.obj", await res.text());
+  $("#samples").addEventListener("click", async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-sample]");
+    const s = b && SAMPLES[b.dataset.sample!];
+    if (!s) return;
+    const res = await fetch(`${import.meta.env.BASE_URL}samples/${s.file}`);
+    load(s.file, await res.text());
   });
 
   for (const sel of [unitSel, upSel, originSel]) {
@@ -202,7 +278,7 @@ export function mountSceneView(root: HTMLElement): void {
     } else return;
     model.refreshMaterials();
     renderSurfaces();
-    viewer.invalidate();
+    projectors.modelChanged();
   });
 
   root.querySelector(".surface-actions")!.addEventListener("click", (e) => {
@@ -220,11 +296,14 @@ export function mountSceneView(root: HTMLElement): void {
   });
 
   const measureBtn = $("#measure");
-  measureBtn.addEventListener("click", () => {
-    measure.setActive(!measure.active);
-    measureBtn.setAttribute("aria-pressed", String(measure.active));
-    measureBtn.classList.toggle("on", measure.active);
-  });
+  function toggleMeasure(on: boolean) {
+    measure.setActive(on);
+    measureBtn.setAttribute("aria-pressed", String(on));
+    measureBtn.classList.toggle("on", on);
+    if (on) setAiming(false);
+    syncGizmo();
+  }
+  measureBtn.addEventListener("click", () => toggleMeasure(!measure.active));
   measure.onChange = (m: Measurement | null, pending: boolean) => {
     const out = $("#measureOut");
     if (pending) out.innerHTML = `<p class="hint">Agora clique no segundo ponto.</p>`;

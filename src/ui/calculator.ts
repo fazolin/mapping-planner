@@ -14,14 +14,7 @@ import {
   type Rect,
   type Resolution,
 } from "../core/optics";
-
-const RESOLUTIONS: Record<string, Resolution> = {
-  "WUXGA 1920×1200": { width: 1920, height: 1200 },
-  "Full HD 1920×1080": { width: 1920, height: 1080 },
-  "4K UHD 3840×2160": { width: 3840, height: 2160 },
-  "4K DCI 4096×2160": { width: 4096, height: 2160 },
-  "WXGA 1280×800": { width: 1280, height: 800 },
-};
+import { RESOLUTIONS } from "../core/presets";
 
 type Mode = "distancia" | "largura";
 

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
 export type ViewPreset = "perspectiva" | "frente" | "topo" | "lado";
@@ -11,6 +12,8 @@ export class Viewer {
   readonly renderer: THREE.WebGLRenderer;
   readonly labels: CSS2DRenderer;
   readonly controls: OrbitControls;
+  /** setas para mover o objeto selecionado */
+  readonly transform: TransformControls;
   /** onde fica o modelo importado */
   readonly modelRoot = new THREE.Group();
   /** objetos auxiliares (medições etc.) */
@@ -39,6 +42,14 @@ export class Viewer {
     this.controls.dampingFactor = 0.12;
     this.controls.screenSpacePanning = true;
     this.controls.addEventListener("change", () => this.invalidate());
+
+    this.transform = new TransformControls(this.camera, this.renderer.domElement);
+    this.transform.setSize(0.8);
+    this.transform.addEventListener("dragging-changed", (e) => {
+      this.controls.enabled = !(e as unknown as { value: boolean }).value;
+    });
+    this.transform.addEventListener("change", () => this.invalidate());
+    this.scene.add(this.transform.getHelper());
 
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x404040, 1.6));
     const sun = new THREE.DirectionalLight(0xffffff, 1.4);
@@ -101,11 +112,15 @@ export class Viewer {
     this.invalidate();
   }
 
+  /** Chamados antes de cada quadro desenhado (ex.: mapas de sombra dos projetores). */
+  readonly beforeRender: (() => void)[] = [];
+
   private loop = (): void => {
     this.frame = requestAnimationFrame(this.loop);
     this.controls.update();
     if (!this.dirty) return;
     this.dirty = false;
+    for (const fn of this.beforeRender) fn();
     this.renderer.render(this.scene, this.camera);
     this.labels.render(this.scene, this.camera);
   };
@@ -116,9 +131,17 @@ export class Viewer {
     return box;
   }
 
-  /** Enquadra o modelo numa vista pronta. */
+  /** Objetos extras a incluir no enquadramento das vistas (ex.: projetores). */
+  frameExtras: THREE.Object3D[] = [];
+
+  /** Enquadra o modelo (e os extras visíveis) numa vista pronta. */
   setView(view: ViewPreset): void {
     const box = this.modelBox();
+    for (const o of this.frameExtras) {
+      o.traverseVisible((c) => {
+        if (c instanceof THREE.Mesh) box.expandByObject(c);
+      });
+    }
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const radius = Math.max(size.length() / 2, 0.5);
@@ -147,13 +170,18 @@ export class Viewer {
 
   /** Todos os pontos do modelo sob o cursor, do mais próximo ao mais distante. */
   pickAll(clientX: number, clientY: number): THREE.Intersection[] {
+    return this.raycastObject(this.modelRoot, clientX, clientY);
+  }
+
+  /** Raios do cursor contra um objeto qualquer (e filhos visíveis). */
+  raycastObject(object: THREE.Object3D, clientX: number, clientY: number): THREE.Intersection[] {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((clientX - rect.left) / rect.width) * 2 - 1,
       -((clientY - rect.top) / rect.height) * 2 + 1,
     );
     this.raycaster.setFromCamera(ndc, this.camera);
-    return this.raycaster.intersectObject(this.modelRoot, true).filter((h) => h.object.visible);
+    return this.raycaster.intersectObject(object, true).filter((h) => h.object.visible);
   }
 
   /** Posição em pixels (cliente) de um ponto do mundo. */

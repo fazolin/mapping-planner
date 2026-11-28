@@ -153,6 +153,8 @@ body {
 .viewport.dragging .drop-hint { display: grid; }
 
 .btn-row { display: flex; gap: 8px; }
+.samples { margin-top: 6px; font-size: 13px; }
+.samples .hint { margin: 0 4px 0 0; }
 .btn {
   display: inline-block;
   border: 1px solid var(--line);
@@ -190,6 +192,59 @@ body {
 .surfaces small { color: var(--muted); font-size: 11px; }
 .eye { border: 0; background: none; cursor: pointer; font-size: 14px; padding: 0 4px; }
 .eye.off { opacity: 0.25; }
+
+/* --- Projetores ------------------------------------------------------------ */
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.panel-head h2 { margin: 0; }
+.panel h3 {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 16px 0 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+}
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.btn.danger { color: #dc2626; }
+.btn-row.wrap { flex-wrap: wrap; align-items: center; }
+.btn-row + .btn-row, .panel > .btn-row:last-child { margin-top: 12px; }
+.check { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.check input { width: auto; }
+.name-input { font-weight: 600; font-size: 15px; }
+#pjTrRange { width: 100%; margin: 4px 0 8px; accent-color: var(--accent); padding: 0; }
+
+.proj-list { list-style: none; margin: 0; padding: 0; }
+.proj-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.proj-list li:hover { background: var(--accent-soft); }
+.proj-list li.on { background: var(--accent-soft); font-weight: 600; }
+.proj-list .dot { width: 10px; height: 10px; border-radius: 50%; }
+.proj-list .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-list small { color: var(--muted); font-size: 11px; font-weight: 400; }
+
+.stats-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.stats-mini div { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.stats-mini span { display: block; color: var(--muted); font-size: 11px; }
+.stats-mini strong { font-variant-numeric: tabular-nums; }
+.stats-mini em { display: block; color: var(--muted); font-size: 11px; font-style: normal; }
+
+.projector-label {
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  transform: translateY(-14px);
+}
+.projector-label.selected { background: var(--accent); }
 
 .measure-out { margin-top: 8px; }
 .measure-big { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }

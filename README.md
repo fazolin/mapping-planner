@@ -13,7 +13,7 @@ Especificação: [docs/ESPECIFICACAO.md](docs/ESPECIFICACAO.md)
 | 1. Óptica (cálculos + testes) | ✅ |
 | Calculadora de projeção | ✅ |
 | 2. Cena 3D (OBJ, unidade/eixo/origem, navegação, medição, superfícies) | ✅ |
-| 3. Projetores na cena | — |
+| 3. Projetores na cena (posição, apontar, lente, projeção com sombra, números) | ✅ |
 | 4. Biblioteca de equipamentos | — |
 | 5. Salvar/abrir projeto | — |
 

@@ -2,6 +2,12 @@ import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { originOffset, transformBox, UNIT_SCALE, type Box3, type OriginMode, type Unit, type UpAxis } from "./units";
 
+export const PROJECTOR_LAYER = 1;
+
+/** Cores base das superfícies (com ou sem projeção). */
+export const SURFACE_COLOR = 0xdcdee3;
+export const OTHER_COLOR = 0x5b616b;
+
 export interface ImportOptions {
   unit: Unit;
   up: UpAxis;
@@ -48,6 +54,8 @@ export class ImportedModel {
       if (!(o instanceof THREE.Mesh)) return;
       const geo = o.geometry as THREE.BufferGeometry;
       if (!geo.attributes.normal) geo.computeVertexNormals();
+      // camada 1 = o que as câmeras dos projetores enxergam (mapa de sombra)
+      o.layers.enable(PROJECTOR_LAYER);
       const triangles = (geo.index ? geo.index.count : geo.attributes.position!.count) / 3;
       i++;
       this.surfaces.push({
@@ -104,9 +112,19 @@ export class ImportedModel {
     };
   }
 
+  private surfaceMaterial: THREE.Material = SURFACE_MATERIAL;
+  private otherMaterial: THREE.Material = OTHER_MATERIAL;
+
+  /** Troca os materiais (ex.: material com projeção). */
+  setMaterials(surface: THREE.Material, other: THREE.Material): void {
+    this.surfaceMaterial = surface;
+    this.otherMaterial = other;
+    this.refreshMaterials();
+  }
+
   refreshMaterials(): void {
     for (const s of this.surfaces) {
-      s.mesh.material = s.projection ? SURFACE_MATERIAL : OTHER_MATERIAL;
+      s.mesh.material = s.projection ? this.surfaceMaterial : this.otherMaterial;
       s.mesh.visible = s.visible;
     }
   }
@@ -118,7 +136,7 @@ export class ImportedModel {
 }
 
 const SURFACE_MATERIAL = new THREE.MeshStandardMaterial({
-  color: 0xe5e7eb,
+  color: SURFACE_COLOR,
   roughness: 0.9,
   side: THREE.DoubleSide,
   polygonOffset: true,
@@ -126,7 +144,7 @@ const SURFACE_MATERIAL = new THREE.MeshStandardMaterial({
   polygonOffsetUnits: 1,
 });
 const OTHER_MATERIAL = new THREE.MeshStandardMaterial({
-  color: 0x6b7280,
+  color: OTHER_COLOR,
   roughness: 1,
   side: THREE.DoubleSide,
   polygonOffset: true,
